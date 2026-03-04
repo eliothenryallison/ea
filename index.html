@@ -38,15 +38,6 @@
   .wrap{ padding:44px 52px; max-width:980px; }
   #stream{ white-space:pre-wrap; margin:0; }
   .entry{ display:block; margin:0 0 10px 0; transition:opacity 160ms ease; }
-
-  /* entry layout (prevents confusing wraps on mobile) */
-  .entry { display:block; }
-  .line1{ display:flex; flex-wrap:wrap; align-items:baseline; }
-  .date{ min-width: 7ch; opacity: 0.95; }
-  .gap{ white-space: pre; }
-  .title{ flex: 1 1 260px; }
-  .sub{ display:block; padding-left: calc(7ch + 4ch); }
-
   .entry.dim{ opacity:var(--dim); }
 
   a{ color:inherit; text-decoration:none; }
@@ -113,11 +104,6 @@
   "sameAs": [
     "https://soundcloud.com/eliotallison"
   ]
-    /* CV entry wrapping on phones */
-    .line1{ flex-direction: column; }
-    .gap{ display:none; }
-    .sub{ padding-left: 0; }
-
 }
 </script>
 </head>
@@ -284,57 +270,29 @@ function appendCursor(){
 }
 
 function entryNode(e){
-  const wrap = document.createElement("span");
-  wrap.className = "entry";
-  wrap.dataset.tags = (e.tags||[]).join(" ");
+  const span = document.createElement("span");
+  span.className = "entry";
+  span.dataset.tags = (e.tags||[]).join(" ");
 
-  const dateText = formatDateYM(e.date);
-  const titleText = e.title || "";
+  const d = formatDateYM(e.date).padEnd(8, " ");
+  const title = e.title || "";
+  const line1Prefix = d + "    ";
 
-  const line1 = document.createElement("span");
-  line1.className = "line1";
-
-  const date = document.createElement("span");
-  date.className = "date";
-  date.textContent = dateText;
-
-  const title = document.createElement("span");
-  title.className = "title";
+  // line1: title becomes link if url exists
+  let line1Html = escHtml(line1Prefix);
   if(e.url){
-    const a = document.createElement("a");
-    a.href = e.url;
-    a.target = "_blank";
-    a.rel = "noreferrer";
-    a.textContent = titleText;
-    title.appendChild(a);
-  } else {
-    title.textContent = titleText;
+    line1Html += `<a href="${escHtml(e.url)}" target="_blank" rel="noreferrer">${escHtml(title)}</a>`;
+  }else{
+    line1Html += escHtml(title);
   }
 
-  line1.appendChild(date);
+  const lines = [];
+  lines.push(line1Html);
+  if(e.role) lines.push(escHtml("            " + e.role));
+  if(e.context) lines.push(escHtml("            " + e.context));
 
-  const gap = document.createElement("span");
-  gap.className = "gap";
-  gap.textContent = "    ";
-  line1.appendChild(gap);
-
-  line1.appendChild(title);
-  wrap.appendChild(line1);
-
-  if(e.role){
-    const r = document.createElement("span");
-    r.className = "sub role";
-    r.textContent = e.role;
-    wrap.appendChild(r);
-  }
-  if(e.context){
-    const c = document.createElement("span");
-    c.className = "sub context";
-    c.textContent = e.context;
-    wrap.appendChild(c);
-  }
-
-  return wrap;
+  span.innerHTML = lines.join("\n");
+  return span;
 }
 
 function typeEntries(entries){
