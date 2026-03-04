@@ -102,55 +102,6 @@
   @media (prefers-reduced-motion: reduce){
     .cursor{ animation:none; }
   }
-
-#kb{
-  position: fixed;
-  left: 8px;
-  bottom: 8px;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  border: 0;
-  padding: 0;
-  margin: 0;
-}
-
-
-#tapZone{
-  position: fixed;
-  inset: 0;
-  z-index: 8;
-  background: transparent;
-  pointer-events: none;
-}
-#tapZone.on{ pointer-events: auto; }
-
-
-/* CV entry layout */
-.entry{
-  display: grid;
-  grid-template-columns: 7ch 1fr;
-  column-gap: 10px;
-  row-gap: 2px;
-  margin: 0 0 18px 0;
-}
-.entry .date{ grid-column: 1; }
-.entry .title{ grid-column: 2; }
-.entry .role, .entry .ctx{ grid-column: 2; }
-.entry a{ color: inherit; text-decoration: none; }
-.entry a:hover{ text-decoration: underline; }
-@media (max-width: 760px){
-  .entry{ grid-template-columns: 7ch 1fr; margin-bottom: 16px; }
-}
-
-
-/* When showing CV, allow normal flow inside stream */
-body.cv #stream{
-  white-space: normal;
-}
-body.cv #stream .cursor{ display:none; }
-body.home #stream, body.contact #stream{ white-space: pre-wrap; }
-
 </style>
 <script type="application/ld+json">
 {
@@ -158,7 +109,7 @@ body.home #stream, body.contact #stream{ white-space: pre-wrap; }
   "@type": "Person",
   "name": "Eliot Henry Allison",
   "jobTitle": "Sound Practitioner",
-  "url": "https://eliothenryallison.github.io/ea/",
+  "url": "https://YOUR-GITHUB-PAGES-URL-HERE",
   "sameAs": [
     "https://soundcloud.com/eliotallison"
   ]
@@ -170,10 +121,8 @@ body.home #stream, body.contact #stream{ white-space: pre-wrap; }
 }
 </script>
 </head>
-<body class="home">
+<body>
 
-
-<div id="tapZone" aria-hidden="true"></div>
 <video id="mind" autoplay muted loop playsinline>
   <source src="head-placeholder.mp4" type="video/mp4">
 </video>
@@ -254,48 +203,6 @@ const tagsEl = document.getElementById("tags");
 let selectedTags = new Set();
 let revealTimer = null;
 let revealIndex = 0;
-
-function makeEntryElement(e){
-  const el = document.createElement("div");
-  el.className = "entry";
-  el.dataset.tags = (e.tags || []).join(" ");
-
-  const date = document.createElement("div");
-  date.className = "date";
-  date.textContent = (e.date || "").slice(0,7);
-  el.appendChild(date);
-
-  const title = document.createElement("div");
-  title.className = "title";
-  if(e.url){
-    const a = document.createElement("a");
-    a.href = e.url;
-    a.target = "_blank";
-    a.rel = "noreferrer";
-    a.textContent = e.title || "";
-    title.appendChild(a);
-  } else {
-    title.textContent = e.title || "";
-  }
-  el.appendChild(title);
-
-  if(e.role){
-    const role = document.createElement("div");
-    role.className = "role";
-    role.textContent = e.role;
-    el.appendChild(role);
-  }
-
-  if(e.context){
-    const ctx = document.createElement("div");
-    ctx.className = "ctx";
-    ctx.textContent = e.context;
-    el.appendChild(ctx);
-  }
-
-  return el;
-}
-
 
 function escHtml(s){
   return String(s ?? "")
@@ -480,7 +387,6 @@ function typeLines(lines){
 }
 
 function showHome(){
-  setMode('home');
   clearStream();
   // intentionally quiet: cursor only until someone types
   const t = document.createElement("span");
@@ -495,7 +401,6 @@ function showCv(){
 }
 
 function showContact(){
-  setMode('contact');
   typeLines(CONTACT_LINES);
 }
 
@@ -603,7 +508,5 @@ document.addEventListener("keydown", (e) => {
 renderTags(ENTRIES);
 route();
 </script>
-
-<input id="kb" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" />
 </body>
 </html>
