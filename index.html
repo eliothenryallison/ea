@@ -26,7 +26,6 @@
     font-size:14px; line-height:1.68; overflow-x:hidden;
   }
 
-  /* background video placeholder */
   #mind{
     position:fixed; inset:0; width:100%; height:100%;
     object-fit:cover; opacity:0.085;
@@ -34,19 +33,9 @@
     pointer-events:none; z-index:-2;
   }
 
-  /* content */
   .wrap{ padding:44px 52px; max-width:980px; }
   #stream{ white-space:pre-wrap; margin:0; }
   .entry{ display:block; margin:0 0 10px 0; transition:opacity 160ms ease; }
-
-  /* entry layout (prevents confusing wraps on mobile) */
-  .entry { display:block; }
-  .line1{ display:flex; flex-wrap:wrap; align-items:baseline; }
-  .date{ min-width: 7ch; opacity: 0.95; }
-  .gap{ white-space: pre; }
-  .title{ flex: 1 1 260px; }
-  .sub{ display:block; padding-left: calc(7ch + 4ch); }
-
   .entry.dim{ opacity:var(--dim); }
 
   a{ color:inherit; text-decoration:none; }
@@ -58,7 +47,6 @@
   }
   @keyframes blink{ 0%,49%{opacity:1} 50%,100%{opacity:0} }
 
-  /* menu */
   #menu{
     position:fixed; right:18px; top:18px; width:220px;
     background:var(--menu-bg);
@@ -71,10 +59,10 @@
   .rule{ margin:10px 0; opacity:0.6; }
   .menuLink{ display:block; padding:2px 4px; }
 
-    #tagSection{ display:none; }
+  #tagSection{ display:none; }
   body.view-cv #tagSection{ display:block; }
 
-#tags{
+  #tags{
     display:flex; flex-direction:column; gap:6px;
     margin:8px 0 6px 0;
     max-height: calc(100vh - 210px);
@@ -87,7 +75,6 @@
   .tag:hover{ background: rgba(0,0,0,0.06); }
   .tag.on{ background: rgba(0,0,0,0.10); outline:1px solid rgba(0,0,0,0.25); }
 
-  /* mobile: bottom bar */
   @media (max-width:760px){
     .wrap{ padding:28px 18px 140px 18px; }
     #menu{ left:10px; right:10px; top:auto; bottom:10px; width:auto; }
@@ -102,6 +89,48 @@
   @media (prefers-reduced-motion: reduce){
     .cursor{ animation:none; }
   }
+
+  /* mobile keyboard helper on home */
+  #mobileInput{
+    display:none;
+    position:fixed;
+    left:18px;
+    right:18px;
+    top:18px;
+    bottom:18px;
+    z-index:10; /* below menu, above stream */
+    background:transparent;
+    color:transparent;
+    caret-color:transparent;
+    border:0;
+    outline:none;
+    resize:none;
+    opacity:0.01;
+    font: inherit;
+  }
+  body.view-home #mobileInput{ display:block; }
+  @media (max-width:760px){
+    #mobileInput{
+      left:18px;
+      right:18px;
+      top:18px;
+      bottom:140px; /* keep menu clickable */
+    }
+  }
+
+
+  .projectTitle{
+    font-size:1.12em;
+    letter-spacing:0.01em;
+  }
+  .projectBlock .body{
+    display:block;
+    padding-left:4ch;
+  }
+  .projectBlock .body a{
+    color:inherit;
+  }
+
 </style>
 <script type="application/ld+json">
 {
@@ -113,11 +142,6 @@
   "sameAs": [
     "https://soundcloud.com/eliotallison"
   ]
-    /* CV entry wrapping on phones */
-    .line1{ flex-direction: column; }
-    .gap{ display:none; }
-    .sub{ padding-left: 0; }
-
 }
 </script>
 </head>
@@ -150,8 +174,9 @@
   <pre id="stream"></pre>
 </div>
 
+<textarea id="mobileInput" aria-label="terminal input"></textarea>
+
 <script>
-/* ===== EDIT ME: entries (keep YYYY-MM-DD internally; display is YYYY-MM) ===== */
 const ENTRIES = [
   {date:"2025-11-21", title:"A Ghost in my Ear", role:"Sound Engineer", context:"Hampstead Theatre & HFH Productions", url:"https://www.google.com/search?q=a+ghost+in+your+ear&ie=UTF-8", tags:["theatre","sound","labour"]},
 
@@ -188,21 +213,44 @@ const ENTRIES = [
   {date:"2015-01-01", title:"Hidden Indexes", role:"Solo exhibition", context:"Berlin", url:"", tags:["art","exhibition"]}
 ];
 
-/* Contact page */
 const CONTACT_LINES = [
   "eliothenryallison@gmail.com"
 ];
 
-/* ===== behaviour ===== */
-const REVEAL_PER_SECOND = 5;  // slower, visible
-const DIM_OPACITY = 0.22;
+const PROJECTS = {
+  "friendly pickle jingle": {
+    displayTitle: "ea.001_FRIENDLY_PICKLE_JINGLE",
+    password: "1234",
+    updates: [
+      {
+        date: "2026_03_26_offers",
+        message: ["Hey Ben,", "please find the first offers below.", "Hope all's good!"],
+        files: [
+          "projects/ea.001_friendly_pickle_jingle/2026_03_26_offers/picklegroove.mp3",
+          "projects/ea.001_friendly_pickle_jingle/2026_03_26_offers/picklefarm.mp3",
+          "projects/ea.001_friendly_pickle_jingle/2026_03_26_offers/picklejingle.mp3"
+        ],
+        zip: "projects/ea.001_friendly_pickle_jingle/2026_03_26_offers/ea.001_friendly_pickle_jingle_2026_03_26_offers.zip"
+      }
+    ]
+  }
+};
+
+const REVEAL_PER_SECOND = 5;
 
 const streamEl = document.getElementById("stream");
 const tagsEl = document.getElementById("tags");
+const mobileInput = document.getElementById("mobileInput");
 
 let selectedTags = new Set();
 let revealTimer = null;
 let revealIndex = 0;
+
+let homeBuffer = "";
+let homeEraseTimer = null;
+let passwordMode = false;
+let passwordBuffer = "";
+let pendingProjectKey = null;
 
 function escHtml(s){
   return String(s ?? "")
@@ -215,7 +263,7 @@ function escHtml(s){
 
 function formatDateYM(dateStr){
   if(!dateStr) return "";
-  return dateStr.slice(0,7); // YYYY-MM
+  return dateStr.slice(0,7);
 }
 
 function sortEntries(entries){
@@ -284,57 +332,35 @@ function appendCursor(){
 }
 
 function entryNode(e){
-  const wrap = document.createElement("span");
-  wrap.className = "entry";
-  wrap.dataset.tags = (e.tags||[]).join(" ");
+  const span = document.createElement("span");
+  span.className = "entry";
+  span.dataset.tags = (e.tags||[]).join(" ");
 
-  const dateText = formatDateYM(e.date);
-  const titleText = e.title || "";
+  const d = formatDateYM(e.date).padEnd(8, " ");
+  const title = e.title || "";
+  const line1Prefix = d + "    ";
 
-  const line1 = document.createElement("span");
-  line1.className = "line1";
-
-  const date = document.createElement("span");
-  date.className = "date";
-  date.textContent = dateText;
-
-  const title = document.createElement("span");
-  title.className = "title";
+  let line1Html = escHtml(line1Prefix);
   if(e.url){
-    const a = document.createElement("a");
-    a.href = e.url;
-    a.target = "_blank";
-    a.rel = "noreferrer";
-    a.textContent = titleText;
-    title.appendChild(a);
-  } else {
-    title.textContent = titleText;
+    line1Html += `<a href="${escHtml(e.url)}" target="_blank" rel="noreferrer">${escHtml(title)}</a>`;
+  }else{
+    line1Html += escHtml(title);
   }
 
-  line1.appendChild(date);
+  const lines = [];
+  lines.push(line1Html);
+  if(e.role) lines.push(escHtml("            " + e.role));
+  if(e.context) lines.push(escHtml("            " + e.context));
 
-  const gap = document.createElement("span");
-  gap.className = "gap";
-  gap.textContent = "    ";
-  line1.appendChild(gap);
+  span.innerHTML = lines.join("\n");
+  return span;
+}
 
-  line1.appendChild(title);
-  wrap.appendChild(line1);
-
-  if(e.role){
-    const r = document.createElement("span");
-    r.className = "sub role";
-    r.textContent = e.role;
-    wrap.appendChild(r);
-  }
-  if(e.context){
-    const c = document.createElement("span");
-    c.className = "sub context";
-    c.textContent = e.context;
-    wrap.appendChild(c);
-  }
-
-  return wrap;
+function htmlEntry(html){
+  const span = document.createElement("span");
+  span.className = "entry";
+  span.innerHTML = html;
+  return span;
 }
 
 function typeEntries(entries){
@@ -348,7 +374,6 @@ function typeEntries(entries){
   revealTimer = setInterval(() => {
     if(revealIndex >= sorted.length){
       clearStream();
-      // final render static
       for(const e of sorted){
         const node = entryNode(e);
         streamEl.appendChild(node);
@@ -386,9 +411,33 @@ function typeLines(lines){
   }, ms);
 }
 
+function typeCustomNodes(nodes){
+  clearStream();
+  appendCursor();
+  const cursor = () => streamEl.querySelector(".cursor");
+  const ms = Math.max(50, Math.floor(1000 / REVEAL_PER_SECOND));
+
+  revealTimer = setInterval(() => {
+    if(revealIndex >= nodes.length){
+      clearStream();
+      for(const node of nodes){
+        streamEl.appendChild(node);
+        streamEl.appendChild(document.createTextNode("\n\n"));
+      }
+      appendCursor();
+      return;
+    }
+    const node = nodes[revealIndex++];
+    streamEl.insertBefore(node, cursor());
+    streamEl.insertBefore(document.createTextNode("\n\n"), cursor());
+  }, ms);
+}
+
 function showHome(){
   clearStream();
-  // intentionally quiet: cursor only until someone types
+  passwordMode = false;
+  passwordBuffer = "";
+  pendingProjectKey = null;
   const t = document.createElement("span");
   t.id = "homeText";
   t.textContent = "";
@@ -396,21 +445,56 @@ function showHome(){
   appendCursor();
 }
 
-function showCv(){
-  typeEntries(ENTRIES);
-}
+function showCv(){ typeEntries(ENTRIES); }
+function showContact(){ typeLines(CONTACT_LINES); }
 
-function showContact(){
-  typeLines(CONTACT_LINES);
+function showProject(project){
+  revealIndex = 0;
+  const nodes = [];
+
+  nodes.push(htmlEntry('<span class="projectTitle">'+escHtml(project.displayTitle)+'</span>'));
+
+  for(const update of project.updates){
+    const parts = [];
+    parts.push(escHtml(update.date));
+    parts.push('<span class="body">');
+
+    if(update.message && update.message.length){
+      for(const line of update.message){
+        parts.push(escHtml(line));
+      }
+      parts.push('');
+    }
+
+    for(const filePath of update.files){
+      const fileName = filePath.split("/").pop();
+      parts.push(`<a href="${escHtml(filePath)}" target="_blank" rel="noreferrer">${escHtml(fileName)}</a>`);
+    }
+
+    if(update.zip){
+      parts.push('');
+      parts.push(`<a href="${escHtml(update.zip)}" download>↓ [all]</a>`);
+    }
+
+    parts.push('');
+    parts.push(`<a href="mailto:eliothenryallison@gmail.com?subject=${encodeURIComponent(project.displayTitle + '_' + update.date)}">reply →</a>`);
+    parts.push('</span>');
+
+    const block = document.createElement("span");
+    block.className = "entry projectBlock";
+    block.innerHTML = parts.join("\n");
+    nodes.push(block);
+  }
+
+  typeCustomNodes(nodes);
 }
 
 function setView(view){
-  document.body.classList.remove("view-home","view-cv","view-contact");
+  document.body.classList.remove("view-home","view-cv","view-contact","view-project");
   document.body.classList.add(`view-${view}`);
 }
 
 function route(){
-  // clear any transient homepage typing when navigating
   if(typeof resetHomeInput === 'function') resetHomeInput();
   const hash = (location.hash || "#home").toLowerCase();
   if(hash === "#cv"){
@@ -419,6 +503,16 @@ function route(){
   } else if(hash === "#contact"){
     setView("contact");
     showContact();
+  } else if(hash.startsWith("#project-")){
+    const key = decodeURIComponent(hash.replace("#project-",""));
+    const project = PROJECTS[key];
+    if(project){
+      setView("project");
+      showProject(project);
+    } else {
+      setView("home");
+      showHome();
+    }
   } else {
     setView("home");
     showHome();
@@ -427,7 +521,6 @@ function route(){
 
 window.addEventListener("hashchange", route);
 
-// Clicking the active page acts like a "home" button
 document.getElementById("linkCv").addEventListener("click", (e) => {
   if((location.hash || "#home").toLowerCase() === "#cv"){
     e.preventDefault();
@@ -442,15 +535,13 @@ document.getElementById("linkContact").addEventListener("click", (e) => {
   }
 });
 
-
-/* --- home input: type to probe; 'cv' or 'contact' + Enter navigates; otherwise vanishes --- */
-let homeBuffer = "";
-let homeEraseTimer = null;
-
 function resetHomeInput(){
   homeBuffer = "";
   if(homeEraseTimer) clearTimeout(homeEraseTimer);
   homeEraseTimer = null;
+  passwordMode = false;
+  passwordBuffer = "";
+  pendingProjectKey = null;
   const ht = document.getElementById("homeText");
   if(ht) ht.textContent = "";
 }
@@ -459,11 +550,136 @@ function inHome(){
   return document.body.classList.contains("view-home");
 }
 
+function startPasswordPrompt(projectKey){
+  passwordMode = true;
+  passwordBuffer = "";
+  pendingProjectKey = projectKey;
+  clearStream();
+
+  const p1 = document.createElement("span");
+  p1.className = "entry";
+  p1.textContent = "password:";
+  streamEl.appendChild(p1);
+
+  const p2 = document.createElement("span");
+  p2.className = "entry";
+  p2.id = "passwordText";
+  p2.textContent = "";
+  streamEl.appendChild(p2);
+
+  streamEl.appendChild(document.createTextNode("\n"));
+  appendCursor();
+  if(mobileInput){
+    mobileInput.value = "";
+    setTimeout(() => mobileInput.focus(), 0);
+  }
+}
+
+function updatePasswordDisplay(){
+  const el = document.getElementById("passwordText");
+  if(el) el.textContent = "*".repeat(passwordBuffer.length);
+}
+
+
+function syncHomeDisplay(){
+  const ht = document.getElementById("homeText");
+  if(ht) ht.textContent = homeBuffer;
+}
+
+if(mobileInput){
+  mobileInput.addEventListener("input", (e) => {
+    if(!inHome()) return;
+    const raw = mobileInput.value.replace(/\n/g, "");
+    if(passwordMode){
+      passwordBuffer = raw;
+      updatePasswordDisplay();
+    } else {
+      homeBuffer = raw;
+      syncHomeDisplay();
+    }
+  });
+
+  mobileInput.addEventListener("keydown", (e) => {
+    if(!inHome()) return;
+    if(e.key === "Enter"){
+      e.preventDefault();
+
+      if(passwordMode){
+        const project = pendingProjectKey ? PROJECTS[pendingProjectKey] : null;
+        if(project && passwordBuffer === project.password){
+          const key = pendingProjectKey;
+          resetHomeInput();
+          location.hash = "#project-" + encodeURIComponent(key);
+        } else {
+          showHome();
+        }
+        return;
+      }
+
+      const cmd = homeBuffer.trim().toLowerCase();
+
+      if(cmd === "cv"){
+        resetHomeInput();
+        location.hash = "#cv";
+        return;
+      }
+      if(cmd === "contact"){
+        resetHomeInput();
+        location.hash = "#contact";
+        return;
+      }
+      if(PROJECTS[cmd]){
+        resetHomeInput();
+        startPasswordPrompt(cmd);
+        return;
+      }
+
+      if(homeEraseTimer) clearTimeout(homeEraseTimer);
+      homeEraseTimer = setTimeout(() => {
+        resetHomeInput();
+      }, 10000);
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if(!inHome()) return;
+    const menu = document.getElementById("menu");
+    if(menu && menu.contains(e.target)) return;
+    mobileInput.focus();
+  });
+}
+
 document.addEventListener("keydown", (e) => {
   if(!inHome()) return;
-
-  // ignore common navigation keys
   if(e.ctrlKey || e.metaKey || e.altKey) return;
+
+  if(passwordMode){
+    if(e.key === "Backspace"){
+      e.preventDefault();
+      passwordBuffer = passwordBuffer.slice(0, -1);
+      updatePasswordDisplay();
+      return;
+    }
+
+    if(e.key === "Enter"){
+      e.preventDefault();
+      const project = pendingProjectKey ? PROJECTS[pendingProjectKey] : null;
+      if(project && passwordBuffer === project.password){
+        const key = pendingProjectKey;
+        resetHomeInput();
+        location.hash = "#project-" + encodeURIComponent(key);
+      } else {
+        showHome();
+      }
+      return;
+    }
+
+    if(e.key.length === 1){
+      passwordBuffer += e.key;
+      updatePasswordDisplay();
+    }
+    return;
+  }
 
   const ht = document.getElementById("homeText");
   if(!ht) return;
@@ -489,6 +705,12 @@ document.addEventListener("keydown", (e) => {
       location.hash = "#contact";
       return;
     }
+    if(PROJECTS[cmd]){
+      homeBuffer = "";
+      ht.textContent = "";
+      startPasswordPrompt(cmd);
+      return;
+    }
 
     if(homeEraseTimer) clearTimeout(homeEraseTimer);
     homeEraseTimer = setTimeout(() => {
@@ -497,13 +719,11 @@ document.addEventListener("keydown", (e) => {
     return;
   }
 
-  // printable characters
   if(e.key.length === 1){
     homeBuffer += e.key;
     ht.textContent = homeBuffer;
   }
 });
-
 
 renderTags(ENTRIES);
 route();
