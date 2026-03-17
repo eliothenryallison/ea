@@ -55,7 +55,7 @@
     z-index:20; user-select:none;
   }
   #menu .logoRow{ display:flex; align-items:center; gap:10px; }
-  #menu img{ width:28px; height:28px; object-fit:contain; display:block; }
+  #menu img{ width:28px; height:28px; object-fit:contain; display:block; cursor:pointer; }
   .rule{ margin:10px 0; opacity:0.6; }
   .menuLink{ display:block; padding:2px 4px; }
 
@@ -131,6 +131,13 @@
     color:inherit;
   }
 
+
+.projectSubtitle{
+  opacity:0.6;
+  font-size:0.9em;
+  letter-spacing:0.01em;
+}
+
 </style>
 <script type="application/ld+json">
 {
@@ -152,7 +159,7 @@
 </video>
 
 <div id="menu" aria-label="menu">
-  <div class="logoRow">
+  <div class="logoRow" id="logoHome" role="button" tabindex="0" aria-label="home">
     <img src="logo.jpeg" alt="logo" />
   </div>
 
@@ -174,7 +181,7 @@
   <pre id="stream"></pre>
 </div>
 
-<textarea id="mobileInput" aria-label="terminal input"></textarea>
+<textarea id="mobileInput" aria-label="terminal input" autocapitalize="none" autocorrect="off" autocomplete="off" spellcheck="false" inputmode="text"></textarea>
 
 <script>
 const ENTRIES = [
@@ -214,13 +221,13 @@ const ENTRIES = [
 ];
 
 const CONTACT_LINES = [
-  "eliothenryallison@gmail.com"
+  '<a href="mailto:eliothenryallison@gmail.com">eliothenryallison@gmail.com</a>'
 ];
 
 const PROJECTS = {
   "friendly pickle jingle": {
     displayTitle: "ea.001_FRIENDLY_PICKLE_JINGLE",
-    password: "1234",
+    password: "pickled",
     updates: [
       {
         date: "2026_03_26_offers",
@@ -405,7 +412,7 @@ function typeLines(lines){
     }
     const span = document.createElement("span");
     span.className = "entry";
-    span.textContent = lines[i++];
+    span.innerHTML = lines[i++];
     streamEl.insertBefore(span, cursorEl());
     streamEl.insertBefore(document.createTextNode("\n\n"), cursorEl());
   }, ms);
@@ -452,7 +459,7 @@ function showProject(project){
   revealIndex = 0;
   const nodes = [];
 
-  nodes.push(htmlEntry('<span class="projectTitle">'+escHtml(project.displayTitle)+'</span>'));
+  nodes.push(htmlEntry('<span class="projectTitle">'+escHtml(project.displayTitle)+'</span><br><span class="projectSubtitle">project log</span>'));
 
   for(const update of project.updates){
     const parts = [];
@@ -521,6 +528,41 @@ function route(){
 
 window.addEventListener("hashchange", route);
 
+
+document.getElementById("logoHome").addEventListener("click", (e) => {
+  e.preventDefault();
+  resetHomeInput();
+  location.hash = "#home";
+  setTimeout(() => {
+    const ht = document.getElementById("homeText");
+    if(mobileInput && typeof mobileInput.focus === "function"){
+      mobileInput.focus();
+    } else if(ht && typeof ht.focus === "function"){
+      ht.focus();
+    } else if(document.activeElement && typeof document.activeElement.blur === "function"){
+      document.activeElement.blur();
+    }
+  }, 0);
+});
+
+document.getElementById("logoHome").addEventListener("keydown", (e) => {
+  if(e.key === "Enter" || e.key === " "){
+    e.preventDefault();
+    resetHomeInput();
+    location.hash = "#home";
+    setTimeout(() => {
+      const ht = document.getElementById("homeText");
+      if(mobileInput && typeof mobileInput.focus === "function"){
+        mobileInput.focus();
+      } else if(ht && typeof ht.focus === "function"){
+        ht.focus();
+      } else if(document.activeElement && typeof document.activeElement.blur === "function"){
+        document.activeElement.blur();
+      }
+    }, 0);
+  }
+});
+
 document.getElementById("linkCv").addEventListener("click", (e) => {
   if((location.hash || "#home").toLowerCase() === "#cv"){
     e.preventDefault();
@@ -542,6 +584,7 @@ function resetHomeInput(){
   passwordMode = false;
   passwordBuffer = "";
   pendingProjectKey = null;
+  if(mobileInput) mobileInput.value = "";
   const ht = document.getElementById("homeText");
   if(ht) ht.textContent = "";
 }
@@ -589,20 +632,25 @@ function syncHomeDisplay(){
 if(mobileInput){
   mobileInput.addEventListener("input", (e) => {
     if(!inHome()) return;
-    const raw = mobileInput.value.replace(/\n/g, "");
+    const cleaned = (mobileInput.value || "").replace(/[\n\r]/g, "");
+    if(mobileInput.value !== cleaned) mobileInput.value = cleaned;
+
     if(passwordMode){
-      passwordBuffer = raw;
+      passwordBuffer = cleaned;
       updatePasswordDisplay();
     } else {
-      homeBuffer = raw;
+      homeBuffer = cleaned;
       syncHomeDisplay();
     }
+    e.stopPropagation();
   });
 
   mobileInput.addEventListener("keydown", (e) => {
     if(!inHome()) return;
+
     if(e.key === "Enter"){
       e.preventDefault();
+      e.stopPropagation();
 
       if(passwordMode){
         const project = pendingProjectKey ? PROJECTS[pendingProjectKey] : null;
@@ -629,7 +677,10 @@ if(mobileInput){
         return;
       }
       if(PROJECTS[cmd]){
-        resetHomeInput();
+        homeBuffer = "";
+        const ht = document.getElementById("homeText");
+        if(ht) ht.textContent = "";
+        mobileInput.value = "";
         startPasswordPrompt(cmd);
         return;
       }
@@ -638,6 +689,12 @@ if(mobileInput){
       homeEraseTimer = setTimeout(() => {
         resetHomeInput();
       }, 10000);
+      return;
+    }
+
+    if(e.key === "Backspace"){
+      // Let iOS update the textarea, then mirror it on the next input event.
+      e.stopPropagation();
     }
   });
 
@@ -651,6 +708,7 @@ if(mobileInput){
 
 document.addEventListener("keydown", (e) => {
   if(!inHome()) return;
+  if(mobileInput && document.activeElement === mobileInput) return;
   if(e.ctrlKey || e.metaKey || e.altKey) return;
 
   if(passwordMode){
