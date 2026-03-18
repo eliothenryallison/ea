@@ -138,6 +138,10 @@
   letter-spacing:0.01em;
 }
 
+
+  .fileLine{ display:block; }
+  .fileDownload{ opacity:0.7; margin-left:1ch; }
+
 </style>
 <script type="application/ld+json">
 {
@@ -241,6 +245,23 @@ const PROJECTS = {
       }
     ]
   }
+  ,
+  "wild geese hero": {
+    displayTitle: "ea.002_WILD_GEESE_HERO",
+    password: "geesey",
+    updates: [
+      {
+        date: "2026_03_18_offer_1",
+        message: ["Please find your files below."],
+        files: [
+          "projects/ea.002_wild_geese_hero/2026_03_18_offer_1/wild_geese_hero_offer_1_loop.mp4",
+          "projects/ea.002_wild_geese_hero/2026_03_18_offer_1/wild_geese_hero_offer_1.mp4"
+        ],
+        zip: "projects/ea.002_wild_geese_hero/2026_03_18_offer_1/ea.002_wild_geese_hero_2026_03_18_offer_1.zip"
+      }
+    ]
+  }
+
 };
 
 const REVEAL_PER_SECOND = 5;
@@ -473,9 +494,15 @@ function showProject(project){
       parts.push('');
     }
 
-    for(const filePath of update.files){
-      const fileName = filePath.split("/").pop();
-      parts.push(`<a href="${escHtml(filePath)}" target="_blank" rel="noreferrer">${escHtml(fileName)}</a>`);
+    for(const fileItem of update.files){
+      const filePath = typeof fileItem === "string" ? fileItem : fileItem.path;
+      const fileName = typeof fileItem === "string" ? filePath.split("/").pop() : (fileItem.label || fileItem.path.split("/").pop());
+      const download = typeof fileItem === "object" && fileItem.download;
+      if(download){
+        parts.push(`<span class="fileLine"><a href="${escHtml(filePath)}" target="_blank" rel="noreferrer">${escHtml(fileName)}</a><a class="fileDownload" href="${escHtml(filePath)}" download>download →</a></span>`);
+      } else {
+        parts.push(`<a href="${escHtml(filePath)}" target="_blank" rel="noreferrer">${escHtml(fileName)}</a>`);
+      }
     }
 
     if(update.zip){
